@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IP Subnetting & IPv6 Visualizer</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--glass:rgba(255,255,255,0.03)}
+    *{box-sizing:border-box}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,#071124 0%, #071a2a 100%); color:#e6eef6; padding:28px}
+    .container{max-width:1100px;margin:0 auto}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+    h1{font-size:20px;margin:0}
+    .grid{display:grid;grid-template-columns:1fr 420px;gap:18px}
+    .card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.02)}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input, select, button, textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;font-size:14px}
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+    .muted{color:var(--muted);font-size:13px}
+    .output{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); padding:12px;border-radius:10px;margin-top:10px;font-family:monospace}
+    .visual{padding:12px;border-radius:8px;background:linear-gradient(90deg, rgba(6,182,212,0.02), transparent)}
+    .btn{background:var(--accent);border:none;color:#042027;padding:10px 12px;border-radius:8px;cursor:pointer}
+    .small{font-size:13px;padding:6px}
+    footer{margin-top:16px;color:var(--muted);font-size:13px}
+    .error{color:#ffb3b3}
+    .example{font-size:13px;color:var(--muted);margin-top:6px}
+    pre{white-space:pre-wrap;margin:0}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>IP Subnetting & IPv6 Address Visualizer</h1>
+    </header>
+
+    <div class="grid">
+      <div>
+        <!-- IPv4 Card -->
+        <section class="card" id="ipv4-card">
+          <h2 style="margin-top:0;font-size:16px">IPv4 Subnet Calculator</h2>
+          <label>IPv4 Address</label>
+          <input id="ipv4-input" placeholder="e.g. 192.168.10.130" />
+
+          <div style="height:8px"></div>
+          <div class="row">
+            <div>
+              <label>Subnet Mask or CIDR</label>
+              <input id="mask-input" placeholder="e.g. 255.255.255.0 or /24" />
+            </div>
+            <div>
+              <label>Supernet to (optional)</label>
+              <select id="supernet-to">
+                <option value="">— keep same —</option>
+                <option value="8">/8</option>
+                <option value="16">/16</option>
+                <option value="20">/20</option>
+                <option value="22">/22</option>
+                <option value="24">/24</option>
+                <option value="26">/26</option>
+                <option value="28">/28</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="height:10px"></div>
+          <div class="row">
+            <button class="btn" id="ipv4-calc">Calculate IPv4</button>
+            <button class="small" id="ipv4-clear">Clear</button>
+          </div>
+
+          <div id="ipv4-error" class="error" style="margin-top:10px"></div>
+
+          <div class="output" id="ipv4-output" style="display:none">
+            <div class="visual" id="ipv4-visual"></div>
+            <div style="margin-top:8px">
+              <div><strong>Network:</strong> <span id="net"></span></div>
+              <div><strong>Broadcast:</strong> <span id="bcast"></span></div>
+              <div><strong>Subnet Mask:</strong> <span id="mask"></span> <small class="muted" id="maskbits"></small></div>
+              <div><strong>Hosts / Subnet:</strong> <span id="hosts"></span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- IPv6 Card -->
+        <section class="card" style="margin-top:14px" id="ipv6-card">
+          <h2 style="font-size:16px;margin-top:0">IPv6 Tools</h2>
+          <label>IPv6 Address</label>
+          <input id="ipv6-input" placeholder="e.g. 2001:0db8:85a3:0000:0000:8a2e:0370:7334" />
+          <div style="height:8px"></div>
+          <div class="row">
+            <div>
+              <label>Assume /64 Network? </label>
+              <select id="ipv6-assume">
+                <option value="64">/64 (common)</option>
+                <option value="48">/48</option>
+                <option value="56">/56</option>
+                <option value="128">/128 (single address)</option>
+              </select>
+            </div>
+            <div>
+              <label>Action</label>
+              <select id="ipv6-action">
+                <option value="compress">Compress</option>
+                <option value="decompress">Decompress</option>
+                <option value="split">Show Prefix / Subnet ID / Interface ID</option>
+                <option value="validate">Validate</option>
+              </select>
+            </div>
+          </div>
+          <div style="height:8px"></div>
+          <div class="row">
+            <button class="btn" id="ipv6-go">Run IPv6 Tool</button>
+            <button class="small" id="ipv6-clear">Clear</button>
+          </div>
+
+          <div id="ipv6-error" class="error" style="margin-top:10px"></div>
+
+          <div class="output" id="ipv6-output" style="display:none">
+            <div id="ipv6-visual" class="visual"></div>
+            <div style="margin-top:8px">
+              <pre id="ipv6-details"></pre>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <div class="card">
+          <h3 style="margin-top:0">Quick Help & Examples</h3>
+          <div class="example">
+            IPv4 inputs: <br>• Address: 192.168.1.10<br>• Mask: 255.255.255.0 or /24
+          </div>
+          <div style="height:8px"></div>
+          <div class="example">
+            IPv6 examples: <br>• Full: 2001:0db8:0000:0000:0000:ff00:0042:8329<br>• Compressed: 2001:db8::ff00:42:8329
+          </div>
+
+          <div style="height:12px"></div>
+          <h4>What the tool shows</h4>
+          <ul style="padding-left:18px;color:var(--muted)">
+            <li>Network & broadcast addresses (IPv4)</li>
+            <li>CIDR / Subnet mask / Hosts per subnet</li>
+            <li>Supernet: compute network when using a shorter prefix (e.g. /16)</li>
+            <li>IPv6 compress/decompress and split into global routing prefix, subnet ID, interface ID (based on chosen prefix length)</li>
+          </ul>
+          <div style="height:12px"></div>
+          <button class="btn" id="example-fill">Fill example data</button>
+        </div>
+
+        <!-- <div class="card" style="margin-top:12px">
+          <h4 style="margin:0">Teacher-friendly</h4>
+          <div class="muted">Designed for classroom demos: editable inputs, clear visual outputs (network vs host bits) and printable results.</div>
+        </div> -->
+      </aside>
+    </div>
+
+    <footer>
+      Tip: Try supernetting by choosing a smaller prefix in "Supernet to" (e.g. /16) to see the aggregated network range.
+    </footer>
+  </div>
+
+  <script>
+    // ----------------- Utilities -----------------
+    function ipv4ToInt(ip){
+      const parts = ip.trim().split('.').map(Number);
+      if(parts.length!==4 || parts.some(p=>isNaN(p)||p<0||p>255)) return null;
+      return ((parts[0]<<24)>>>0) + (parts[1]<<16) + (parts[2]<<8) + parts[3];
+    }
+    function intToIpv4(i){
+      return [(i>>>24)&255, (i>>>16)&255, (i>>>8)&255, i&255].join('.');
+    }
+    function maskBitsFromMaskStr(maskStr){
+      if(maskStr.startsWith('/')) return parseInt(maskStr.slice(1));
+      const m = ipv4ToInt(maskStr);
+      if(m===null) return null;
+      // count ones
+      let bits=0; for(let i=31;i>=0;i--){ if((m>>i)&1) bits++; else break; }
+      return bits;
+    }
+    function cidrToMaskInt(bits){ return bits===0?0: (~0 << (32-bits))>>>0 }
+
+    // ----------------- IPv4 Calc -----------------
+    document.getElementById('ipv4-calc').addEventListener('click', ()=>{
+      const ip = document.getElementById('ipv4-input').value.trim();
+      const maskIn = document.getElementById('mask-input').value.trim();
+      const superTo = document.getElementById('supernet-to').value;
+      const errEl = document.getElementById('ipv4-error'); errEl.textContent='';
+      const out = document.getElementById('ipv4-output'); out.style.display='none';
+
+      const ipInt = ipv4ToInt(ip);
+      if(ipInt===null){ errEl.textContent='Invalid IPv4 address.'; return; }
+      const bits = maskBitsFromMaskStr(maskIn);
+      if(bits===null || bits<0 || bits>32){ errEl.textContent='Invalid subnet mask or CIDR.'; return; }
+
+      const maskInt = cidrToMaskInt(bits);
+      const network = (ipInt & maskInt)>>>0;
+      const broadcast = (network | (~maskInt))>>>0;
+      const hosts = bits>=31? (bits===31?2:1) : (Math.pow(2,32-bits)-2);
+
+      // If supernet requested
+      let finalNet = network; let finalBits = bits; let finalMaskInt = maskInt; let finalBroadcast = broadcast;
+      if(superTo){
+        const s = parseInt(superTo);
+        if(s<0 || s>32){ errEl.textContent='Invalid supernet prefix'; return; }
+        finalBits = s;
+        finalMaskInt = cidrToMaskInt(finalBits);
+        finalNet = (network & finalMaskInt)>>>0;
+        finalBroadcast = (finalNet | (~finalMaskInt))>>>0;
+      }
+
+      document.getElementById('net').textContent = intToIpv4(finalNet) + ' /' + finalBits;
+      document.getElementById('bcast').textContent = intToIpv4(finalBroadcast);
+      document.getElementById('mask').textContent = intToIpv4(finalMaskInt);
+      document.getElementById('maskbits').textContent = '('+finalBits+' bits)';
+      document.getElementById('hosts').textContent = (finalBits>=31? 'Special ('+hosts+' usable addresses)' : hosts + ' hosts');
+
+      // Visual: show bits
+      const netStr = intToIpv4(finalNet); const maskStr = intToIpv4(finalMaskInt);
+      const netBits = finalNet.toString(2).padStart(32,'0');
+      const maskBits = finalMaskInt.toString(2).padStart(32,'0');
+      const hostBits = netBits.slice(finalBits);
+      const visual = document.getElementById('ipv4-visual');
+      visual.innerHTML = `<div style="font-size:13px"><strong>Binary view (network | host)</strong></div>` +
+        `<div style="margin-top:6px;font-family:monospace">`+
+        `<span style="opacity:0.9">${netBits.slice(0,finalBits)}</span>`+
+        `<span style="opacity:0.5">${netBits.slice(finalBits)}</span>`+
+        `</div>`+
+        `<div style="margin-top:6px" class="muted">Network: ${netStr}  &nbsp; Mask: ${maskStr} </div>`;
+
+      out.style.display='block';
+    });
+
+    document.getElementById('ipv4-clear').addEventListener('click', ()=>{
+      document.getElementById('ipv4-input').value='';
+      document.getElementById('mask-input').value='';
+      document.getElementById('ipv4-output').style.display='none';
+      document.getElementById('ipv4-error').textContent='';
+    });
+
+    // ----------------- IPv6 Helpers -----------------
+    function expandIPv6(addr){
+      try{
+        // Normalize: remove zone ID
+        addr = addr.split('%')[0];
+        if(addr.indexOf('::')===-1){
+          // ensure each group has 4 hex digits
+          return addr.split(':').map(x=>x.padStart(4,'0')).join(':').toLowerCase();
+        }
+        const [left,right] = addr.split('::');
+        const leftGroups = left? left.split(':').filter(Boolean):[];
+        const rightGroups = right? right.split(':').filter(Boolean):[];
+        const missing = 8 - (leftGroups.length + rightGroups.length);
+        if(missing<0) return null;
+        const mid = new Array(missing).fill('0000');
+        const full = [...leftGroups, ...mid, ...rightGroups].map(x=>x.padStart(4,'0'));
+        if(full.length!==8) return null;
+        return full.join(':').toLowerCase();
+      }catch(e){return null}
+    }
+    function compressIPv6(expanded){
+      const groups = expanded.split(':').map(g=>g.replace(/^0+/,'')||'0');
+      // find longest run of zeros
+      let bestStart=-1,bestLen=0; let curStart=-1,curLen=0;
+      for(let i=0;i<groups.length;i++){
+        if(groups[i]==='0'){ if(curStart===-1) curStart=i; curLen++; } else { if(curLen>bestLen){bestLen=curLen;bestStart=curStart;} curStart=-1; curLen=0; }
+      }
+      if(curLen>bestLen){bestLen=curLen;bestStart=curStart;}
+      if(bestLen<=1) return groups.join(':');
+      const left = groups.slice(0,bestStart);
+      const right = groups.slice(bestStart+bestLen);
+      return (left.join(':') + '::' + right.join(':')).replace(/(^:)|(:$)/g,'').replace(/:::+/,'::');
+    }
+
+    function isValidIPv6(addr){ return expandIPv6(addr)!==null }
+
+    document.getElementById('ipv6-go').addEventListener('click', ()=>{
+      const val = document.getElementById('ipv6-input').value.trim();
+      const action = document.getElementById('ipv6-action').value;
+      const assume = parseInt(document.getElementById('ipv6-assume').value);
+      const err = document.getElementById('ipv6-error'); err.textContent='';
+      const out = document.getElementById('ipv6-output'); out.style.display='none';
+
+      if(val===''){ err.textContent='Enter an IPv6 address.'; return; }
+      const expanded = expandIPv6(val);
+      if(expanded===null){ err.textContent='Invalid IPv6 address format.'; return; }
+
+      if(action==='compress'){
+        const compressed = compressIPv6(expanded);
+        document.getElementById('ipv6-details').textContent = 'Compressed: ' + compressed + '\nExpanded: ' + expanded;
+      } else if(action==='decompress'){
+        document.getElementById('ipv6-details').textContent = 'Expanded: ' + expanded;
+      } else if(action==='validate'){
+        document.getElementById('ipv6-details').textContent = 'Address is valid.\nExpanded: ' + expanded + '\nCompressed: ' + compressIPv6(expanded);
+      } else if(action==='split'){
+        // Show prefix / subnet ID / interface ID according to assume
+        // Represent as 128-bit hex without colons
+        const fullHex = expanded.split(':').join(''); // 32 hex chars
+        // Convert to binary string
+        const bin = fullHex.split('').map(h=>parseInt(h,16).toString(2).padStart(4,'0')).join('');
+        const prefixBits = assume;
+        const globalPrefix = bin.slice(0,prefixBits);
+        const rest = bin.slice(prefixBits);
+        // Show as hex chunks
+        function bitsToGroups(bstr){
+          const hex = bstr.match(/.{1,4}/g)?.map(n=>parseInt(n,2).toString(16).padStart(1,'0')).join('')||'';
+          // split into 16-bit (4 hex) groups
+          const groups = hex.match(/.{1,4}/g) || [];
+          return groups.map(g=>g.padStart(4,'0')).join(':');
+        }
+        const prefixHex = bitsToGroups(globalPrefix.padEnd(Math.ceil(prefixBits/4)*4,'0'));
+        const subnetHex = bitsToGroups(rest.slice(0,16).padEnd(16,'0')); // show first 16 bits of subnet id (visual)
+        const interfaceHex = bitsToGroups(rest.slice(16).padEnd(rest.length - 16, '0'));
+
+        document.getElementById('ipv6-details').textContent = `Expanded: ${expanded}\nCompressed: ${compressIPv6(expanded)}\n\nAssumed prefix: /${assume}\nGlobal routing prefix (first ${Math.min(48,prefixBits)} bits): ${prefixHex}\nSubnet ID (next bits visible): ${subnetHex}\nInterface ID (last 64 bits usually): ${expanded.split(':').slice(4).join(':')}`;
+      }
+
+      // Visual box
+      document.getElementById('ipv6-visual').innerHTML = `<div style="font-size:13px"><strong>IPv6 Summary</strong></div><div style="margin-top:6px" class="muted">Expanded form: ${expanded}</div>`;
+      out.style.display='block';
+    });
+
+    document.getElementById('ipv6-clear').addEventListener('click', ()=>{
+      document.getElementById('ipv6-input').value='';
+      document.getElementById('ipv6-output').style.display='none';
+      document.getElementById('ipv6-error').textContent='';
+    });
+
+    // Example fill
+    document.getElementById('example-fill').addEventListener('click', ()=>{
+      document.getElementById('ipv4-input').value='192.168.10.130';
+      document.getElementById('mask-input').value='/26';
+      document.getElementById('ipv6-input').value='2001:0db8:85a3::8a2e:0370:7334';
+    });
+
+  </script>
+</body>
+</html>
